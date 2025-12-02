@@ -1,0 +1,30 @@
+{
+  "name": "countdown-statusbar",
+  "version": "1.0.0",
+  "description": "Mac status bar countdown app",
+  "main": "src/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "dev:electron": "ELECTRON_ENV=development electron .",
+    "build": "vite build && electron-builder",
+    "build:mac": "vite build && electron-builder --mac"
+  },
+  "dependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.0",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4",
+    "vite": "^5.0.0"
+  },
+  "build": {
+    "appId": "com.countdown.statusbar",
+    "productName": "Countdown",
+    "files": ["dist/**/*", "src/main.js", "src/preload.js"],
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.utilities"
+    }
+  }
+}
