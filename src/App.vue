@@ -47,8 +47,8 @@
           <!-- 中间信息 -->
           <div class="item-content">
             <div class="item-header-row">
-              <span class="item-title">{{ item.name }}</span>
-              <span class="item-date-small">{{ formatDate(item.date) }}</span>
+              <div class="item-title">{{ item.name }}</div>
+              <div class="item-date-small">{{ formatDate(item.date) }}</div>
             </div>
             
             <div class="item-details">
@@ -201,8 +201,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { AIService } from './ai-service.js';
+import Sortable from 'sortablejs';
 
 const countdowns = ref([]);
 const currentTab = ref('upcoming');
@@ -215,6 +216,7 @@ const aiConfig = ref({ baseURL: '', apiKey: '', model: '' });
 const aiLoading = ref(false);
 const editingId = ref(null);
 let timer = null;
+let sortable = null;
 
 // 图标 SVG 定义
 const icons = {
@@ -234,28 +236,31 @@ const loadCountdowns = async () => {
       const target = new Date(item.date);
       const start = item.createdAt ? new Date(item.createdAt) : new Date(target);
       if (!item.createdAt) start.setDate(start.getDate() - 30);
-      
+
       const toLocalISO = (d) => {
         const pad = (n) => n < 10 ? '0' + n : n;
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       };
-      
-      return { ...item, startDate: toLocalISO(start), iconType: item.iconType || 'rocket' };
+
+      return { ...item, startDate: toLocalISO(start), iconType: item.iconType || 'rocket', order: item.order || 0 };
     }
-    return item;
+    return { ...item, order: item.order || 0 };
   });
+
+  await nextTick();
+  initSortable();
 };
 
 const filteredCountdowns = computed(() => {
   const now = new Date();
   now.setHours(0,0,0,0);
-  
+
   return countdowns.value.filter(item => {
     const target = new Date(item.date);
     target.setHours(0,0,0,0);
     const isCompleted = target < now;
     return currentTab.value === 'completed' ? isCompleted : !isCompleted;
-  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+  }).sort((a, b) => (a.order || 0) - (b.order || 0));
 });
 
 const calculateDays = (targetDate) => {
@@ -420,6 +425,34 @@ const parseWithAI = async () => {
   }
 };
 
+const initSortable = () => {
+  if (sortable) sortable.destroy();
+
+  const container = document.querySelector('.list-container');
+  if (!container) return;
+
+  sortable = new Sortable(container, {
+    animation: 150,
+    handle: '.list-item',
+    ghostClass: 'sortable-ghost',
+    dragClass: 'sortable-drag',
+    onEnd: async (evt) => {
+      const items = filteredCountdowns.value;
+      const movedItem = items[evt.oldIndex];
+      items.splice(evt.oldIndex, 1);
+      items.splice(evt.newIndex, 0, movedItem);
+
+      items.forEach((item, index) => {
+        item.order = index;
+      });
+
+      for (const item of items) {
+        await window.electronAPI.saveCountdown(item);
+      }
+    }
+  });
+};
+
 onMounted(() => {
   loadCountdowns();
   loadAIConfig();
@@ -430,6 +463,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
+  if (sortable) sortable.destroy();
 });
 </script>
 
@@ -558,6 +592,7 @@ html, body {
   gap: 10px;
   background: transparent;
   padding-bottom: 80px;
+  position: relative;
 }
 
 .list-container::-webkit-scrollbar {
@@ -609,6 +644,14 @@ html, body {
   min-width: 0;
 }
 
+.item-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
 .item-header {
   display: flex;
   align-items: center;
@@ -624,6 +667,17 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  text-align: left;
+}
+
+.item-date-small {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .item-info {
@@ -744,15 +798,15 @@ html, body {
 /* FAB */
 .fab-btn {
   position: absolute;
-  bottom: 24px;
-  right: 24px;
-  width: 56px;
-  height: 56px;
+  bottom: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--primary-gradient);
   color: white;
   border: none;
-  box-shadow: 0 10px 20px -5px var(--primary-shadow);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -761,9 +815,22 @@ html, body {
   z-index: 20;
 }
 
+.fab-btn svg {
+  width: 20px;
+  height: 20px;
+  transition: all 0.3s;
+}
+
 .fab-btn:hover {
-  transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 15px 25px -5px var(--primary-shadow);
+  width: 56px;
+  height: 56px;
+  transform: rotate(90deg);
+  box-shadow: 0 10px 20px -5px var(--primary-shadow);
+}
+
+.fab-btn:hover svg {
+  width: 24px;
+  height: 24px;
 }
 
 /* Modal Card */
@@ -1123,5 +1190,21 @@ html, body {
 .btn-test-full:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+.sortable-drag {
+  cursor: grabbing !important;
+}
+
+.list-item {
+  cursor: grab;
+}
+
+.list-item:active {
+  cursor: grabbing;
 }
 </style>
