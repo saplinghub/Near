@@ -1,0 +1,23 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Near",
+  "outputfilename": "Near",
+  "frontend:install": "cd frontend && npm install",
+  "frontend:build": "cd frontend && npm run build",
+  "frontend:dev:watcher": "cd frontend && npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Sapling",
+    "email": "your@email.com"
+  },
+  "info": {
+    "companyName": "Near",
+    "productName": "Near 倒计时",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2024",
+    "comments": "越近越重要，越近越靠前"
+  },
+  "wailsjsdir": "./frontend/src",
+  "assetdir": "./frontend/dist",
+  "reloaddirs": "frontend/src"
+}

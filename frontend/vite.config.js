@@ -3,10 +3,11 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   plugins: [vue()],
-  root: 'src',
-  base: './',
+  server: {
+    port: 34115,
+  },
   build: {
-    outDir: '../dist',
+    outDir: 'dist',
     emptyOutDir: true,
   },
 });
